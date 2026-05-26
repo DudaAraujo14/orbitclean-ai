@@ -3,6 +3,7 @@ package br.com.orbitclean.orbital.service;
 import br.com.orbitclean.orbital.domain.OrbitalObject;
 import br.com.orbitclean.orbital.dto.OrbitalObjectRequest;
 import br.com.orbitclean.orbital.dto.OrbitalObjectResponse;
+import br.com.orbitclean.orbital.dto.OrbitalScoreResponse;
 import br.com.orbitclean.orbital.repository.OrbitalObjectRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,7 @@ import java.util.List;
 public class OrbitalObjectService {
 
     private final OrbitalObjectRepository repository;
+    private final OrbitalScoringService scoringService;
 
     public OrbitalObjectResponse create(OrbitalObjectRequest request) {
         if (repository.existsByNoradId(request.noradId())) {
@@ -70,5 +72,45 @@ public class OrbitalObjectService {
         }
 
         repository.deleteById(id);
+    }
+
+    public OrbitalScoreResponse calculateScores(Long id) {
+        OrbitalObject object = repository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Orbital object not found"));
+
+        int riskScore = scoringService.calculateRiskScore(object);
+        int circularValueScore = scoringService.calculateCircularValueScore(object);
+
+        object.setRiskScore(riskScore);
+        object.setCircularValueScore(circularValueScore);
+
+        OrbitalObject savedObject = repository.save(object);
+
+        return new OrbitalScoreResponse(
+                savedObject.getId(),
+                savedObject.getNoradId(),
+                savedObject.getName(),
+                savedObject.getRiskScore(),
+                scoringService.classifyRisk(savedObject.getRiskScore()),
+                savedObject.getCircularValueScore(),
+                scoringService.classifyCircularValue(savedObject.getCircularValueScore())
+        );
+    }
+
+    public List<OrbitalObjectResponse> findPriorityRanking() {
+        return repository.findAll()
+                .stream()
+                .sorted((a, b) -> {
+                    int scoreA = safeScore(a.getRiskScore()) + safeScore(a.getCircularValueScore());
+                    int scoreB = safeScore(b.getRiskScore()) + safeScore(b.getCircularValueScore());
+
+                    return Integer.compare(scoreB, scoreA);
+                })
+                .map(OrbitalObjectResponse::fromEntity)
+                .toList();
+    }
+
+    private int safeScore(Integer score) {
+        return score == null ? 0 : score;
     }
 }

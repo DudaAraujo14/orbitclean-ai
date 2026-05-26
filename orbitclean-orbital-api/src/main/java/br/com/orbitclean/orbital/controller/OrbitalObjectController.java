@@ -2,6 +2,7 @@ package br.com.orbitclean.orbital.controller;
 
 import br.com.orbitclean.orbital.dto.OrbitalObjectRequest;
 import br.com.orbitclean.orbital.dto.OrbitalObjectResponse;
+import br.com.orbitclean.orbital.dto.OrbitalScoreResponse;
 import br.com.orbitclean.orbital.service.OrbitalObjectService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -45,5 +46,15 @@ public class OrbitalObjectController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Long id) {
         service.delete(id);
+    }
+
+    @PostMapping("/{id}/scores/calculate")
+    public OrbitalScoreResponse calculateScores(@PathVariable Long id) {
+        return service.calculateScores(id);
+    }
+
+    @GetMapping("/ranking/priority")
+    public List<OrbitalObjectResponse> findPriorityRanking() {
+        return service.findPriorityRanking();
     }
 }
